@@ -59,26 +59,49 @@ app.command("/knowledge", async ({ command, ack, say }) => {
 // });
 
 app.event("app_mention", async ({ event, client, logger }) => {
+  let messages = [];
   try {
     // console.log(client);
     const result = await client.search.messages({
-      token:
-        "xoxp-4018538520917-4034133310033-4048942319056-cc26d1b10d57ff0b49939c5dba283761",
-      query: "hey",
+      token: process.env.REQUEST_TOKEN,
+      query: "@channel",
     });
-    // console.log(result.matches);
-    logger.info(result.messages.matches);
+    let i = 0;
+    result.messages.matches.forEach((el) => {
+      messages[i] = { type: null, text: null };
+      messages[i].type = "section";
+      messages[i].text = { type: null, text: null };
+      messages[i].text.type = "mrkdwn";
+      if (el.blocks[0].elements) {
+        if (el.blocks[0].elements[0].elements[0].text)
+          messages[i].text.text = el.blocks[0].elements[0].elements[0].text;
+        else messages[i].text.text = el.blocks[0].elements[0].elements[1].text;
+      }
+      i++;
+    });
+    // console.log(messages)
+    fs.writeFile("./db.json", JSON.stringify(messages), "utf-8", () => {
+      console.log("Data added");
+    });
+    // });
+    logger.info(messages);
   } catch (error) {
     logger.error(error);
   }
 });
 
-app.message("@channel", async ({ command, say }) => {
+app.message("@channel", async ({ event, client, logger }) => {
   try {
-    say("hello");
+    const data = fs.readFileSync("./db.json", "utf-8");
+    const result = await client.chat.postMessage({
+      text: "Hello",
+      token:
+        "xoxp-4018538520917-4034133310033-4048942319056-cc26d1b10d57ff0b49939c5dba283761",
+      channel: "channelmsg",
+      blocks: data,
+    });
   } catch (error) {
-    console.log("err");
-    console.error(error);
+    logger.error(error);
   }
 });
 
