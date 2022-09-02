@@ -10,6 +10,20 @@ const app = new App({
   appToken: process.env.APP_TOKEN,
 });
 
+/*                        Random bot replies or greetings                        */
+
+app.message("hey", async ({ command, say }) => {
+  try {
+    let random = Math.floor(Math.random() * (5 - 0) + 0);
+    say(commands[random]);
+  } catch (error) {
+    console.log("err");
+    console.error(error);
+  }
+});
+
+/*                        Getting all the meeting links for the day                        */
+
 app.message("meetings", async ({ message, say }) => {
   console.log(message);
   let msg = [];
@@ -19,31 +33,25 @@ app.message("meetings", async ({ message, say }) => {
       query: "https://us06web.zoom",
     });
     console.log(result.messages.matches);
-    // fs.writeFile("./meetings.json", JSON.stringify(msg), "utf-8", () => {
-    //   console.log("Data added");
-    // });
     let i = 0;
     result.messages.matches.forEach((el) => {
       msg[i] = {
-        type: null,
-        text: null,
+        type: "section",
+        text: { type: "mrkdwn", text: "null" },
         accessory: {
           type: "button",
           text: {
             type: "plain_text",
-            text: " ",
+            text: "null",
           },
           action_id: "button-action",
         },
       };
-      msg[i].type = "section";
-      msg[i].text = { type: null, text: " " };
-      msg[i].text.type = "mrkdwn";
       msg[i].text.text = el.text;
       msg[i].accessory.text.text = `From <@${el.username}>`;
       i++;
     });
-    console.log(msg);
+    msg.splice(msg.length-1);
     await say({
       blocks: msg,
     });
@@ -57,15 +65,7 @@ app.action("button_click", async ({ body, ack, say }) => {
   await say(`<@${body.user.id}> clicked the button`);
 });
 
-app.message("hey", async ({ command, say }) => {
-  try {
-    let random = Math.floor(Math.random() * (5 - 0) + 0);
-    say(commands[random]);
-  } catch (error) {
-    console.log("err");
-    console.error(error);
-  }
-});
+/*                        Storing the "{@channel}" important messages to local database                        */
 
 app.event("app_mention", async ({ event, client, logger }) => {
   let messages = [];
@@ -94,12 +94,13 @@ app.event("app_mention", async ({ event, client, logger }) => {
     fs.writeFile("./db.json", JSON.stringify(messages), "utf-8", () => {
       console.log("Data added");
     });
-    // });
     logger.info(messages);
   } catch (error) {
     logger.error(error);
   }
 });
+
+/*       Retrieving the local database of important messages and displaying in new channel          */
 
 app.message("@channel", async ({ event, client, logger }) => {
   try {
@@ -119,6 +120,8 @@ app.message("@channel", async ({ event, client, logger }) => {
 app.message(":wave:", async ({ message, say }) => {
   await say(`Hello, <@${message.user}>`);
 });
+
+/*                        Starting the bot                        */
 
 (async () => {
   const port = 3000;
