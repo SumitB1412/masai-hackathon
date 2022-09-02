@@ -10,89 +10,101 @@ const app = new App({
   appToken: process.env.APP_TOKEN,
 });
 
-app.command("/knowledge", async ({ command, ack, say }) => {
+/*                        Random bot replies or greetings                        */
+
+app.message("hey", async ({ command, say }) => {
   try {
-    await ack();
-    say("Yaaay! that command works!");
+    let random = Math.floor(Math.random() * (5 - 0) + 0);
+    say(commands[random]);
   } catch (error) {
     console.log("err");
     console.error(error);
   }
 });
 
-// app.message("hello there", async ({ message, say }) => {
-//   await say({
-//     blocks: [
-//       {
-//         type: "section",
-//         text: {
-//           type: "mrkdwn",
-//           text: `Hey there <@${message.user}>!`,
-//         },
-//         accessory: {
-//           type: "button",
-//           text: {
-//             type: "plain_text",
-//             text: "Click Me",
-//           },
-//           action_id: "button_click",
-//         },
-//       },
-//     ],
-//     text: `Hey there <@${message.user}>!`,
-//   });
-// });
+/*                        Getting all the meeting links for the day                        */
 
-// app.action('button_click', async ({ body, ack, say }) => {
-//   await ack();
-//   await say(`<@${body.user.id}> clicked the button`);
-// });
+app.message("meetings", async ({ message, say }) => {
+  console.log(message);
+  let msg = [];
+  try {
+    const result = await app.client.search.messages({
+      token: process.env.REQUEST_TOKEN,
+      query: "https://us06web.zoom",
+    });
+    console.log(result.messages.matches);
+    let i = 0;
+    result.messages.matches.forEach((el) => {
+      msg[i] = {
+        type: "section",
+        text: { type: "mrkdwn", text: "null" },
+        accessory: {
+          type: "button",
+          text: {
+            type: "plain_text",
+            text: "null",
+          },
+          action_id: "button-action",
+        },
+      };
+      msg[i].text.text = el.text;
+      msg[i].accessory.text.text = `From <@${el.username}>`;
+      i++;
+    });
+    msg.splice(msg.length-1);
+    await say({
+      blocks: msg,
+    });
+  } catch (err) {
+    console.log(err);
+  }
+});
 
-// app.message("hey", async ({ command, say }) => {
-//   try {
-//     let random = Math.floor(Math.random() * (5 - 0) + 0);
-//     say(commands[random]);
-//   } catch (error) {
-//     console.log("err");
-//     console.error(error);
-//   }
-// });
+app.action("button_click", async ({ body, ack, say }) => {
+  await ack();
+  await say(`<@${body.user.id}> clicked the button`);
+});
+
+/*                        Storing the "{@channel}" important messages to local database                        */
 
 app.event("app_mention", async ({ event, client, logger }) => {
   let messages = [];
   try {
-    // console.log(client);
     const result = await client.search.messages({
       token: process.env.REQUEST_TOKEN,
       query: "@channel",
     });
     let i = 0;
     result.messages.matches.forEach((el) => {
+      let channel = el.channel.name;
       messages[i] = { type: null, text: null };
       messages[i].type = "section";
-      messages[i].text = { type: null, text: null };
+      messages[i].text = { type: null, text: " " };
       messages[i].text.type = "mrkdwn";
-      if (el.blocks[0].elements) {
-        if (el.blocks[0].elements[0].elements[0].text)
-          messages[i].text.text = el.blocks[0].elements[0].elements[0].text;
-        else messages[i].text.text = el.blocks[0].elements[0].elements[1].text;
+      let havingText = el.blocks[0].elements[0].elements;
+      for (let a = 0; a < havingText.length; a++) {
+        if (havingText[a].text != null) {
+          messages[
+            i
+          ].text.text = `From ${channel} channel -> ${havingText[a].text}`;
+        }
       }
       i++;
     });
-    // console.log(messages)
     fs.writeFile("./db.json", JSON.stringify(messages), "utf-8", () => {
       console.log("Data added");
     });
-    // });
     logger.info(messages);
   } catch (error) {
     logger.error(error);
   }
 });
 
+/*       Retrieving the local database of important messages and displaying in new channel          */
+
 app.message("@channel", async ({ event, client, logger }) => {
   try {
-    const data = fs.readFileSync("./db.json", "utf-8");
+    let data = fs.readFileSync("./db.json", "utf-8");
     const result = await client.chat.postMessage({
       text: "Hello",
       token:
@@ -105,34 +117,11 @@ app.message("@channel", async ({ event, client, logger }) => {
   }
 });
 
-// app.event("app_mention", async ({ event, client, logger }) => {
-//   try {
-//     const result = await client.conversations.history({
-//       token: process.env.SLACK_BOT_TOKEN,
-//     });
-
-// for (const channel of result.channels) {
-//   if (channel.name === "masai-hackathon") {
-//     conversationId = channel.id;
-
-//     // Print result
-//     console.log("Found conversation ID: " + conversationId);
-//     // Break from for loop
-//     break;
-//   }
-// }
-//     console.log(result);
-//   } catch (error) {
-//     console.error(error);
-//   }
-// });
-
-// Find conversation with a specified channel `name`
-// findConversation("general");
-
 app.message(":wave:", async ({ message, say }) => {
   await say(`Hello, <@${message.user}>`);
 });
+
+/*                        Starting the bot                        */
 
 (async () => {
   const port = 3000;
